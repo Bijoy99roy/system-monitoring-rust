@@ -4,7 +4,7 @@ use sysinfo::{
     CpuRefreshKind, MemoryRefreshKind, ProcessRefreshKind, ProcessStatus, ProcessesToUpdate,
     RefreshKind, System,
 };
-use tokio::time::interval;
+use tokio::{sync::broadcast::Sender, time::interval};
 
 use crate::models::models::ProcessSnapshot;
 
@@ -41,7 +41,7 @@ fn collect_snapshot(sys: &System) -> Vec<ProcessSnapshot> {
     processes
 }
 
-pub async fn run() {
+pub async fn run(tx: Sender<String>) {
     let mut sys = System::new_with_specifics(
         RefreshKind::everything()
             .with_cpu(CpuRefreshKind::everything())
@@ -63,8 +63,8 @@ pub async fn run() {
 
         let snap = collect_snapshot(&sys);
 
-        for p in &snap {
-            println!("Process: {:?}", p);
+        if let Ok(json) = serde_json::to_string(&snap) {
+            let _ = tx.send(json);
         }
     }
 }
